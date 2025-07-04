@@ -25,7 +25,6 @@ char* getPriceAndModified(int price, char *priceTagIdentifer, char *QrisData) {
     char *currencyCodePosition = strstr(QrisData, CurrencyCode);
     int finalPosition= 0;
 
-    
     if (currencyCodePosition != NULL) {
         finalPosition = currencyCodePosition - QrisData + strlen(CurrencyCode);
     } else {
@@ -33,55 +32,61 @@ char* getPriceAndModified(int price, char *priceTagIdentifer, char *QrisData) {
     }
 
     // Combine the price tag identifier with the currency code in QrisData
-    static char QrisDataModified[1000] = "";
+    static char QrisDataModified[2000] = "";
 
     strncpy(QrisDataModified, QrisData, finalPosition);
     QrisDataModified[finalPosition] = '\0';
     strcat(QrisDataModified, priceTagIdentifer);
     strcat(QrisDataModified, QrisData + finalPosition);
 
-    // Remove old CRC
-    int crcLength = strlen(QrisDataModified);
-    QrisDataModified[crcLength - 4] = '\0'; // Remove last 4 characters (CRC)
+    // Remove old CRC properly
+    char *crcPos = strstr(QrisDataModified, "6304");
+    if (crcPos) {
+        *crcPos = '\0';
+    }
 
     return QrisDataModified;
-    
 }
 
 char* countCRC(char *QrisDataModified) {
-    int crc = 0;
-    int length = strlen(QrisDataModified);
-    
-    // Calculate CRC using the algorithm
-    for (int i = 0; i < length; i++) {
-        crc += QrisDataModified[i];
+    // Add the "6304" tag before calculating the CRC, as required by QRIS specification
+    char tempWithTag[2500];
+    sprintf(tempWithTag, "%s6304", QrisDataModified);
+
+    // Calculate CRC-CCITT-FALSE (polynomial 0x1021, initial value 0xFFFF)
+    unsigned short crc = 0xFFFF;
+    for (int i = 0; i < strlen(tempWithTag); i++) {
+        crc ^= ((unsigned short)tempWithTag[i]) << 8;
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ 0x1021;
+            else
+                crc <<= 1;
+        }
     }
-    
-    // Convert CRC to hexadecimal string
+    crc &= 0xFFFF;
+
+    // Convert CRC to a 4-digit uppercase hexadecimal string
     char crcHex[5];
-    sprintf(crcHex, "%04X", crc & 0xFFFF); // Ensure CRC is 4 characters long
-    
-    // Append CRC to the modified QRIS data
-    static char finalQrisData[1000] = "";
+    sprintf(crcHex, "%04X", crc);
+
+    // Create the final QR string by appending "6304" tag and CRC value
+    static char finalQrisData[2500] = "";
     strcpy(finalQrisData, QrisDataModified);
+    strcat(finalQrisData, "6304");
     strcat(finalQrisData, crcHex);
-    
+
     return finalQrisData;
-    
 }
-
-void getStringAndModified(char str, int price) {
-    
-}
-
 
 
 int main() {
     char QrisData[] = "00020101021126710019ID.CO.CIMBNIAGA.WWW011893600022000068608102150000081009205200303UMI51450015ID.OR.QRNPG.WWW0215ID10243216249410303UMI5204481253033605802ID5923MBL342580*AGEN BLBMRI-36010PANDEGLANG61054225262120708M515280163040B3E";
-    int price = 1500;
+    int price = 13000;
     char priceTagIdentifer[20];
     char *modifiedQrisData = countCRC(getPriceAndModified(price, priceTagIdentifer, QrisData));
-    printf("%s", modifiedQrisData);
+    printf("%s\n", modifiedQrisData);
+    return 0;
 }
 
 // QRIS GLOBAL TAG STRUCTURE
