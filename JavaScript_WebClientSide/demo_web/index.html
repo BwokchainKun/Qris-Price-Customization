@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demo QRIS for Price Customization</title>
+    <!-- Import WASM build file -->
+    <script src="../qris.js"></script>
+    <!-- jsQR for scanning QR -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <!-- qrcode.js for generating QR -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <link rel="stylesheet" href="style/style.css">
+</head>
+<body>
+    <h2>Demo QRIS for Price Customization</h2>
+
+    <!-- Step 1 -->
+    <div id="step1" class="step">
+        <h3>Choose QRIS Source</h3>
+        <button id="sampleBtn">Use System QRIS Sample</button>
+        <button id="cameraBtn">Add Your Own QRIS with Camera</button>
+        <button id="uploadBtn">Upload QRIS Photo</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none;">
+    </div>
+
+    <!-- Video & canvas -->
+    <h2 id="video-title" style="display:none;">Point Camera to QRIS QR Code</h2>
+    <video id="video" width="300" height="300" style="display:none;" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <!-- Step 2 -->
+    <div id="step2" class="step hidden">
+        <h3>Input Price (Rp)</h3>
+        <input type="number" id="priceInput" placeholder="e.g.: 15000">
+        <button id="generateBtn">Custom QRIS Price</button>
+        <div class="newqrcontainer">
+            <h3 class="QrTitle"></h3>
+            <div id="newQR"></div>
+            <h3 class="PayNow"></h3>
+        </div>
+        <button onclick="MainMenu()">Back to Main Menu</button>
+    </div>
+
+    <!-- Sample QR image -->
+    <img id="sampleQR" src="qris_image_exp/qris.jpg" style="display:none;">
+
+    <!-- Modal -->
+    <div id="modal">
+    <div id="modalContent">
+        <img id="modalImg" src="" style="max-width: 100%; border-radius: 8px; display: none; margin-bottom: 10px;">
+        <p id="modalText"></p>
+        <button id="proceedBtn">Continue</button>
+        <button id="cancelBtn">Cancel</button>
+    </div>
+</div>
+
+    <script>
+        let qrisString = "";
+        let videoStream;
+        let currentAction = "";
+
+        Module.onRuntimeInitialized = () => {
+            const generate_qris = Module.cwrap('generate_qris', 'string', ['string', 'number']);
+
+            const showModal = (text, action, imgSrc = null) => {
+                document.getElementById("modalText").innerText = text;
+                const imgEl = document.getElementById("modalImg");
+                
+                if (imgSrc) {
+                        imgEl.src = imgSrc;
+                        imgEl.style.display = "block";
+                } else {
+                        imgEl.style.display = "none";
+                }
+
+                document.getElementById("modal").style.display = "flex";
+                currentAction = action;
+                };
+
+            document.getElementById("sampleBtn").addEventListener("click", () => {
+                showModal("You are going to use the default QRIS from the website. Any transaction here cannot be refunded, please use your own QRIS for transaction test.", "sample",  "qris_image_exp/qris.jpg");
+            });
+
+        document.getElementById("cameraBtn").addEventListener("click", () => {
+            showModal("You will use the camera to scan QRIS.", "camera");
+            });
+
+        document.getElementById("uploadBtn").addEventListener("click", () => {
+            showModal("You will upload a QRIS image from your gallery.", "upload");
+            });
+
+            document.getElementById("proceedBtn").addEventListener("click", () => {
+                document.getElementById("modal").style.display = "none";
+                if (currentAction === "sample") {
+                    handleSample();
+                } else if (currentAction === "camera") {
+                    handleCamera();
+                } else if (currentAction === "upload") {
+                    document.getElementById("fileInput").click();
+                }
+            });
+
+            document.getElementById("cancelBtn").addEventListener("click", () => {
+                document.getElementById("modal").style.display = "none";
+            });
+
+            function handleSample() {
+                const image = document.getElementById("sampleQR");
+                const canvas = document.getElementById("canvas");
+                const ctx = canvas.getContext("2d");
+                canvas.width = image.width;
+                canvas.height = image.height;
+                ctx.drawImage(image, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+                if (code) {
+                    qrisString = code.data;
+                    alert("QRIS sample successfully read!");
+                    document.getElementById("step1").classList.add("hidden");
+                    document.getElementById("step2").classList.remove("hidden");
+                    if (videoStream) {
+                        videoStream.getTracks().forEach(track => track.stop());
+                        document.getElementById("video").style.display = "none";
+                        document.getElementById("video-title").style.display = "none";
+                }
+                } else {
+                    alert("Failed to read QRIS sample");
+                }
+            }
+
+            function handleCamera() {
+                document.getElementById("video-title").style.display = "block";
+                const video = document.getElementById("video");
+                const canvas = document.getElementById("canvas");
+                const ctx = canvas.getContext("2d");
+                video.style.display = "block";
+
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                    .then(stream => {
+                        video.srcObject = stream;
+                        videoStream = stream;
+                        const checkQR = () => {
+                            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
+                                ctx.drawImage(video, 0, 0);
+                                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+                                if (code) {
+                                    qrisString = code.data;
+                                    alert("QRIS successfully read!");
+                                    videoStream.getTracks().forEach(track => track.stop());
+                                    video.style.display = "none";
+                                    document.getElementById("video-title").style.display = "none";
+                                    document.getElementById("step1").classList.add("hidden");
+                                    document.getElementById("step2").classList.remove("hidden");
+                                    return;
+                                }
+                            }
+                            requestAnimationFrame(checkQR);
+                        };
+                        checkQR();
+                    })
+                    .catch(err => {
+                        alert("Cannot access camera: " + err);
+                    });
+            }
+
+            document.getElementById("fileInput").addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                if (!file) {
+                    alert("No file selected");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.getElementById("canvas");
+                        const ctx = canvas.getContext("2d");
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+                        if (code) {
+                            qrisString = code.data;
+                            alert("QRIS successfully read from image!");
+                            document.getElementById("step1").classList.add("hidden");
+                            document.getElementById("step2").classList.remove("hidden");
+                            if (videoStream) {
+                                        videoStream.getTracks().forEach(track => track.stop());
+                                        document.getElementById("video").style.display = "none";
+                                        document.getElementById("video-title").style.display = "none";
+                                }
+                        } else {
+                            alert("Failed to read QRIS from image");
+                        }
+                    };
+                    img.src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById("generateBtn").addEventListener("click", () => {
+                const price = parseInt(document.getElementById("priceInput").value);
+                if (!qrisString || !price) {
+                    alert("Please enter a valid price");
+                    return;
+                }
+                const finalQris = generate_qris(qrisString, price);
+                document.getElementById("newQR").innerHTML = "";
+                QRCode.toCanvas(finalQris, { width: 256 }, function (error, canvas) {
+                    if (error) {
+                        console.error(error);
+                        alert("Failed to generate new QR");
+                    } else {
+                        document.getElementById("newQR").appendChild(canvas);
+                        document.getElementsByClassName("QrTitle")[0].textContent = "New QRIS with Custom Price";
+                        document.getElementsByClassName("PayNow")[0].textContent = "Pay Now!";
+
+                    }
+                });
+            });
+        };
+
+        function MainMenu() {
+            document.getElementById("step1").classList.remove("hidden");
+            document.getElementById("step2").classList.add("hidden");
+            document.getElementById("newQR").innerHTML = "";
+            document.getElementById("priceInput").value = "";
+            document.getElementsByClassName("QrTitle")[0].textContent = "";
+            document.getElementsByClassName("PayNow")[0].textContent = "";
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                document.getElementById("video").style.display = "none";
+                document.getElementById("video-title").style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
