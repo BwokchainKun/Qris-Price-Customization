@@ -1,12 +1,11 @@
 #emsdk to compiled wasm
-emsdk/
+/emsdk/
 emsdk
 
 # web demo
 demo_web
 demo_web/*
-JavaScript_WebClientSide/demo_web/*
-index.html
+/JavaScript_WebClientSide/demo_web/*
 
 
 # readmequote
