@@ -1,3 +1,15 @@
 #emsdk to compiled wasm
 emsdk/
 emsdk
+
+# web demo
+demo_web
+demo_web/*
+JavaScript_WebClientSide/demo_web/*
+index.html
+
+
+# readmequote
+ReadMd.txt
+# readmequote
+readother.txt
