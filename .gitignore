@@ -2,9 +2,10 @@
 /emsdk/
 emsdk
 
+# vs code
+/.vscode/*
+
 # web demo
-demo_web
-demo_web/*
 /JavaScript_WebClientSide/demo_web/*
 
 
