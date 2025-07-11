@@ -105,8 +105,7 @@ If you want to build or modify:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/npm-qris-web.git
-cd npm-qris-web
+git clone https://github.com/BwokchainKun/Qris-Price-Customization.git
 
 # Install dependencies (if any)
 npm install
