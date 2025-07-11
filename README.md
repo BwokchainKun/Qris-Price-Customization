@@ -23,7 +23,7 @@ how to code and can use a final product from this project.
 ---
 
 ## Developer Features Documentations
-- How to Implement on Web Client Side without backend server : Link Later
+- How to Implement on Web Client Side without backend server : [link](https://github.com/BwokchainKun/Qris-Price-Customization/blob/update/JavaScript_WebClientSide/README.md)
 - How to Implement in Android Developemnt (Kotlin Native & Java)
 - How to Implement in Cross-Platform Development (Flutter)
 - How to Implement in Desktop App Development (c + GTK)
